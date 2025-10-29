@@ -1,23 +1,15 @@
-import logo from './logo.svg';
+import { useState } from 'react';
 import './App.css';
+import MapView from './map/MapView';
+import SpeedDialConverter from './converter/SpeedDial.js';
 
 function App() {
+  const [coords, setCoords] = useState({ lat: -15.793889, lng: -47.882778 });
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <MapView coords={coords} />
+      <SpeedDialConverter setCoords={setCoords} />
     </div>
   );
 }

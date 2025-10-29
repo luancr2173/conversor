@@ -1,0 +1,105 @@
+/* General container for the converter component */
+#converter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Title */
+h1 {
+  color: #333;
+  font-size: 0.8rem;
+  margin: 0;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Input and button container */
+#input-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem; /* Smaller gap for input and button */
+}
+
+/* Input fields styling */
+#converter input {
+  flex-grow: 1; /* Input takes remaining space */
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#converter input:focus {
+  outline: none;
+  border-color: #007BFF;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* General button styling */
+#converter button {
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 0.5rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  background-color: #007BFF;
+  color: white;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+#converter button:hover {
+  background-color: #0056b3;
+}
+
+#converter button:active {
+  transform: scale(0.98);
+}
+
+/* Container for the top buttons (UTM/GMS) */
+#btn-container {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+#btn-container button {
+  flex-grow: 1; /* Make buttons share the space */
+}
+
+
+/* Output text styling */
+#output {
+  margin-top: 1rem;
+  font-weight: bold;
+  font-size: 0.7rem;
+  white-space: pre-wrap;
+  color: #333;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* Error message styling */
+.error-message {
+  color: #d93025;
+  border-radius: 8px;
+  font-weight: 500;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.7rem;
+}
