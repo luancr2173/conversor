@@ -8,7 +8,7 @@ const GmsToDecimal = (latDeg, latMin, latSec, latDir, lonDeg, lonMin, lonSec, lo
   const lon = lonDeg + lonMin / 60 + lonSec / 3600;
   return {
     lat: latDir.toUpperCase() === 'S' ? -lat : lat,
-    lng: lonDir.toUpperCase() === 'W' ? -lon : lon
+    lng: lonDir.toUpperCase() === 'O' ? -lon : lon
   };
 };
 
@@ -20,30 +20,91 @@ const Converter = ({ setMapCoords }) => {
 
   const handleChange = (e) => {
     const { value } = e.target;
-    const cleanVal = value.toUpperCase().replace(/[^0-9NSWE]/g, '');
 
-    const lengths = mode === 'utm' ? [6, 7, 2, 1] : [2, 2, 2, 1, 2, 2, 2, 1];
-    const parts = [];
-    let currentPos = 0;
-
-    for (const len of lengths) {
-      if (currentPos >= cleanVal.length) break;
-      parts.push(cleanVal.substr(currentPos, len));
-      currentPos += len;
+    if (mode === 'utm') {
+      setInput(value);
+      setError(null);
+      return;
     }
 
-    setInput(parts.join(','));
+    let cleanVal = value.replace(/[^0-9NSOE]/gi, '').toUpperCase();
+
+    if (cleanVal.length >= 2) {
+      let latDeg = parseInt(cleanVal.substring(0, 2));
+      if (latDeg > 90) cleanVal = '90' + cleanVal.substring(2);
+    }
+    if (cleanVal.length >= 4) {
+      let latMin = parseInt(cleanVal.substring(2, 4));
+      if (latMin > 59) cleanVal = cleanVal.substring(0, 2) + '59' + cleanVal.substring(4);
+    }
+    if (cleanVal.length >= 6) {
+      let latSec = parseInt(cleanVal.substring(4, 6));
+      if (latSec > 59) cleanVal = cleanVal.substring(0, 4) + '59' + cleanVal.substring(6);
+    }
+    if (cleanVal.length >= 7) {
+      if (!/^[NS]$/.test(cleanVal.substring(6, 7))) {
+        cleanVal = cleanVal.substring(0, 6) + cleanVal.substring(7);
+      }
+    }
+    if (cleanVal.length >= 9) {
+      let lonDeg = parseInt(cleanVal.substring(7, 9));
+      if (lonDeg > 90) cleanVal = cleanVal.substring(0, 7) + '90' + cleanVal.substring(9);
+    }
+    if (cleanVal.length >= 11) {
+      let lonMin = parseInt(cleanVal.substring(9, 11));
+      if (lonMin > 59) cleanVal = cleanVal.substring(0, 9) + '59' + cleanVal.substring(11);
+    }
+    if (cleanVal.length >= 13) {
+      let lonSec = parseInt(cleanVal.substring(11, 13));
+      if (lonSec > 59) cleanVal = cleanVal.substring(0, 11) + '59' + cleanVal.substring(13);
+    }
+    if (cleanVal.length >= 14) {
+      if (!/^[OE]$/.test(cleanVal.substring(13, 14))) {
+        cleanVal = cleanVal.substring(0, 13) + cleanVal.substring(14);
+      }
+    }
+
+    const chars = cleanVal.split('');
+    let maskedVal = '';
+
+    const add = (str) => maskedVal += str;
+    const addSlice = (start, end) => {
+      if (chars.length > start) {
+        add(chars.slice(start, end).join(''));
+      }
+    }
+    const addSep = (sep, pos) => {
+      if (chars.length > pos) {
+        add(sep);
+      }
+    }
+
+    addSlice(0, 2); // lat deg
+    addSep('° ', 2);
+    addSlice(2, 4); // lat min
+    addSep("' ", 4);
+    addSlice(4, 6); // lat sec
+    addSep('" ', 6);
+    addSlice(6, 7); // lat dir
+    addSep(' ', 7);
+    addSlice(7, 9); // lon deg
+    addSep('° ', 9);
+    addSlice(9, 11); // lon min
+    addSep("' ", 11);
+    addSlice(11, 13); // lon sec
+    addSep('" ', 13);
+    addSlice(13, 14); // lon dir
+
+    setInput(maskedVal);
     setError(null);
   };
 
   const handleConvert = () => {
-    const parts = input.split(',').map(p => p.trim());
-
     try {
       let coord;
 
       if (mode === 'utm') {
-
+        const parts = input.split(',').map(p => p.trim());
         const [easting, northing, zone, hemisphere] = parts;
         const res = UtmToDec({
           easting: Number(easting),
@@ -53,10 +114,11 @@ const Converter = ({ setMapCoords }) => {
         });
         coord = { lat: res.lat, lng: res.lon };
       } else {
+        const cleanedInput = input.toUpperCase().replace(/[^0-9NSOE\s'"]+/g, '');
+        const parts = cleanedInput.replace(/°|'|"/g, '').split(/\s+/).filter(p => p);
 
-        // Validate number of parts for GMS input
         if (parts.length !== 8) {
-          throw new Error("Formato GMS inválido. Use: latDeg,latMin,latSec,latDir,lonDeg,lonMin,lonSec,lonDir (Ex: 15,45,30,S,47,55,20,W)");
+          throw new Error("Formato GMS inválido. Use: DD° MM' SS\" D DD° MM' SS\" D (Ex: 15° 45' 30\" S 47° 55' 20\" O)");
         }
 
         const [latDeg, latMin, latSec, latDir, lonDeg, lonMin, lonSec, lonDir] = parts;
@@ -83,8 +145,8 @@ const Converter = ({ setMapCoords }) => {
           throw new Error('Minutos/segundos devem estar no intervalo 0–59.');
         }
 
-        if (!/^[NS]$/i.test(latDir) || !/^[EW]$/i.test(lonDir)) {
-          throw new Error('Direções inválidas. Use N/S para latitude e E/W para longitude.');
+        if (!/^[NS]$/i.test(latDir) || !/^[OE]$/i.test(lonDir)) {
+          throw new Error('Direções inválidas. Use N/S para latitude e O/E para longitude.');
         }
 
         // All good: convert
@@ -95,12 +157,11 @@ const Converter = ({ setMapCoords }) => {
       }
 
       setMapCoords(coord);
-      setResult(`Lat: ${coord.lat.toFixed(6)}
-Lon: ${coord.lng.toFixed(6)}`);
+      setResult(`Lat: ${coord.lat.toFixed(6)}\nLon: ${coord.lng.toFixed(6)}`);
       setError(null);
 
-    } catch {
-      setError(" Erro na conversão!");
+    } catch (err) {
+      setError(err.message || " Erro na conversão!");
       setResult(null);
     }
   };
@@ -117,7 +178,7 @@ Lon: ${coord.lng.toFixed(6)}`);
         <input
           placeholder={mode === 'utm'
             ? 'Ex: 500000,8250000,23,S'
-            : 'Ex: 15,45,30,S,47,55,20,W'}
+            : 'Ex: 15° 46\' 48" S 47° 55\' 45" O'}
           value={input}
           onChange={handleChange}
           className="masked-input"
