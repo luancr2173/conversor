@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Fab from '@mui/material/Fab';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import Converter from './Converter.js';
+import Tooltip from '@mui/material/Tooltip';
 
 /**
  * @typedef {object} SpeedDialConverterProps
@@ -28,20 +29,22 @@ export default function SpeedDialConverter({ setCoords }) {
   return (
     <>
       {/* Botão de Ação Flutuante (FAB) para alternar a visibilidade do Converter */}
-      <Fab
-        color="primary"
-        aria-label="converter"
-        size="small"
-        sx={{
-          position: 'absolute', // Posição absoluta para fixar na tela
-          top: 80, // Distância do topo
-          right: 16, // Distância da direita
-        }}
-        onClick={() => setShowConverter(!showConverter)} // Alterna o estado de visibilidade
-      >
-        {/* Ícone de exploração/viagem */}
-        <TravelExploreIcon />
-      </Fab>
+      <Tooltip title="conversor">
+        <Fab
+          color="primary"
+          aria-label="converter"
+          size="small"
+          sx={{
+            position: 'absolute', // Posição absoluta para fixar na tela
+            top: 80, // Distância do topo
+            right: 16, // Distância da direita
+          }}
+          onClick={() => setShowConverter(!showConverter)} // Alterna o estado de visibilidade
+        >
+          {/* Ícone de exploração/viagem */}
+          <TravelExploreIcon />
+        </Fab>
+      </Tooltip>
 
       {/* Renderização condicional do componente Converter */}
       {showConverter && (
