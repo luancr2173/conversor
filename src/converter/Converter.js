@@ -1,111 +1,108 @@
 import React, { useState } from "react";
 import './converter.css';
-import { UtmToDec } from './converterUtils.js';
+import { UtmToDec, GmsToDec } from './converterUtils.js';
 
-// Converte GMS (graus, minutos, segundos) → decimal
-const GmsToDecimal = (latDeg, latMin, latSec, latDir, lonDeg, lonMin, lonSec, lonDir) => {
-  const lat = latDeg + latMin / 60 + latSec / 3600;
-  const lon = lonDeg + lonMin / 60 + lonSec / 3600;
-  return {
-    lat: latDir.toUpperCase() === 'S' ? -lat : lat,
-    lng: lonDir.toUpperCase() === 'O' ? -lon : lon
-  };
-};
+/**
+ * @typedef {object} ConverterProps
+ * @property {function(coords: {lat: number, lng: number}): void} setMapCoords -
+ * Uma função de callback para definir as coordenadas decimais no mapa do componente pai.
+ */
 
+/**
+ * Componente funcional para converter coordenadas entre diferentes formatos (UTM e GMS)
+ * para o formato Decimal (WGS84) e exibi-las no mapa.
+ *
+ * @param {ConverterProps} props - As propriedades passadas para o componente.
+ * @returns {React.ReactElement} O componente de interface do usuário do conversor.
+ */
 const Converter = ({ setMapCoords }) => {
+  // --------------------------------------------------
+  // ESTADOS DO COMPONENTE
+  // --------------------------------------------------
+
+  /**
+   * Controla o modo de conversão ativo: 'utm' ou 'gms'.
+   * @type {['utm'|'gms', React.Dispatch<React.SetStateAction<'utm'|'gms'>>]}
+   */
   const [mode, setMode] = useState('utm');
-  const [input, setInput] = useState('');
+
+  /**
+   * Armazena os valores dos campos de entrada para o modo UTM.
+   * @type {[object, React.Dispatch<React.SetStateAction<object>>]}
+   * @property {string} easting - Coordenada Leste.
+   * @property {string} northing - Coordenada Norte.
+   * @property {string} zone - Zona UTM.
+   * @property {'N'|'S'} hemisphere - Hemisfério (Norte ou Sul).
+   */
+  const [utmInputs, setUtmInputs] = useState({ easting: '', northing: '', zone: '', hemisphere: 'N' });
+
+  /**
+   * Armazena os valores dos campos de entrada para o modo GMS (Graus, Minutos, Segundos).
+   * @type {[object, React.Dispatch<React.SetStateAction<object>>]}
+   * @property {string} latDeg, latMin, latSec - Graus, minutos e segundos da Latitude.
+   * @property {'N'|'S'} latDir - Direção da Latitude.
+   * @property {string} lonDeg, lonMin, lonSec - Graus, minutos e segundos da Longitude.
+   * @property {'L'|'O'} lonDir - Direção da Longitude.
+   */
+  const [gmsInputs, setGmsInputs] = useState({
+    latDeg: '', latMin: '', latSec: '', latDir: 'N',
+    lonDeg: '', lonMin: '', lonSec: '', lonDir: 'L'
+  });
+
+  /**
+   * Armazena a string do resultado da conversão formatado para exibição.
+   * @type {[string|null, React.Dispatch<React.SetStateAction<string|null>>]}
+   */
   const [result, setResult] = useState(null);
+
+  /**
+   * Armazena a mensagem de erro em caso de falha na validação ou conversão.
+   * @type {[string|null, React.Dispatch<React.SetStateAction<string|null>>]}
+   */
   const [error, setError] = useState(null);
 
-  const handleChange = (e) => {
-    const { value } = e.target;
+  // --------------------------------------------------
+  // HANDLERS DE EVENTOS
+  // --------------------------------------------------
 
-    if (mode === 'utm') {
-      setInput(value);
-      setError(null);
-      return;
-    }
-
-    let cleanVal = value.replace(/[^0-9NSOE]/gi, '').toUpperCase();
-
-    if (cleanVal.length >= 2) {
-      let latDeg = parseInt(cleanVal.substring(0, 2));
-      if (latDeg > 90) cleanVal = '90' + cleanVal.substring(2);
-    }
-    if (cleanVal.length >= 4) {
-      let latMin = parseInt(cleanVal.substring(2, 4));
-      if (latMin > 59) cleanVal = cleanVal.substring(0, 2) + '59' + cleanVal.substring(4);
-    }
-    if (cleanVal.length >= 6) {
-      let latSec = parseInt(cleanVal.substring(4, 6));
-      if (latSec > 59) cleanVal = cleanVal.substring(0, 4) + '59' + cleanVal.substring(6);
-    }
-    if (cleanVal.length >= 7) {
-      if (!/^[NS]$/.test(cleanVal.substring(6, 7))) {
-        cleanVal = cleanVal.substring(0, 6) + cleanVal.substring(7);
-      }
-    }
-    if (cleanVal.length >= 9) {
-      let lonDeg = parseInt(cleanVal.substring(7, 9));
-      if (lonDeg > 90) cleanVal = cleanVal.substring(0, 7) + '90' + cleanVal.substring(9);
-    }
-    if (cleanVal.length >= 11) {
-      let lonMin = parseInt(cleanVal.substring(9, 11));
-      if (lonMin > 59) cleanVal = cleanVal.substring(0, 9) + '59' + cleanVal.substring(11);
-    }
-    if (cleanVal.length >= 13) {
-      let lonSec = parseInt(cleanVal.substring(11, 13));
-      if (lonSec > 59) cleanVal = cleanVal.substring(0, 11) + '59' + cleanVal.substring(13);
-    }
-    if (cleanVal.length >= 14) {
-      if (!/^[OE]$/.test(cleanVal.substring(13, 14))) {
-        cleanVal = cleanVal.substring(0, 13) + cleanVal.substring(14);
-      }
-    }
-
-    const chars = cleanVal.split('');
-    let maskedVal = '';
-
-    const add = (str) => maskedVal += str;
-    const addSlice = (start, end) => {
-      if (chars.length > start) {
-        add(chars.slice(start, end).join(''));
-      }
-    }
-    const addSep = (sep, pos) => {
-      if (chars.length > pos) {
-        add(sep);
-      }
-    }
-
-    addSlice(0, 2); // lat deg
-    addSep('° ', 2);
-    addSlice(2, 4); // lat min
-    addSep("' ", 4);
-    addSlice(4, 6); // lat sec
-    addSep('" ', 6);
-    addSlice(6, 7); // lat dir
-    addSep(' ', 7);
-    addSlice(7, 9); // lon deg
-    addSep('° ', 9);
-    addSlice(9, 11); // lon min
-    addSep("' ", 11);
-    addSlice(11, 13); // lon sec
-    addSep('" ', 13);
-    addSlice(13, 14); // lon dir
-
-    setInput(maskedVal);
-    setError(null);
+  /**
+   * Manipulador de mudança para os campos de entrada do modo UTM.
+   * Atualiza o estado `utmInputs` mantendo os outros campos.
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLSelectElement>} e - Evento de mudança do input.
+   */
+  const handleUtmChange = (e) => {
+    const { name, value } = e.target;
+    setUtmInputs(prev => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Manipulador de mudança para os campos de entrada do modo GMS.
+   * Atualiza o estado `gmsInputs` mantendo os outros campos.
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLSelectElement>} e - Evento de mudança do input.
+   */
+  const handleGmsChange = (e) => {
+    const { name, value } = e.target;
+    setGmsInputs(prev => ({ ...prev, [name]: value }));
+  };
+
+  /**
+   * Executa a lógica de conversão baseada no `mode` atual.
+   * Valida os inputs, chama a função utilitária de conversão e atualiza o estado
+   * do componente pai (`setMapCoords`).
+   */
   const handleConvert = () => {
     try {
       let coord;
 
       if (mode === 'utm') {
-        const parts = input.split(',').map(p => p.trim());
-        const [easting, northing, zone, hemisphere] = parts;
+        const { easting, northing, zone, hemisphere } = utmInputs;
+
+        // Validação básica para UTM
+        if (!easting || !northing || !zone) {
+          throw new Error("Preencha todos os campos UTM.");
+        }
+
+        // Conversão UTM para Decimal
         const res = UtmToDec({
           easting: Number(easting),
           northing: Number(northing),
@@ -113,79 +110,122 @@ const Converter = ({ setMapCoords }) => {
           hemisphere
         });
         coord = { lat: res.lat, lng: res.lon };
-      } else {
-        const cleanedInput = input.toUpperCase().replace(/[^0-9NSOE\s'"]+/g, '');
-        const parts = cleanedInput.replace(/°|'|"/g, '').split(/\s+/).filter(p => p);
 
-        if (parts.length !== 8) {
-          throw new Error("Formato GMS inválido. Use: DD° MM' SS\" D DD° MM' SS\" D (Ex: 15° 45' 30\" S 47° 55' 20\" O)");
+      } else { // mode === 'gms'
+        const { latDeg, latMin, latSec, latDir, lonDeg, lonMin, lonSec, lonDir } = gmsInputs;
+
+        // Validação básica para GMS
+        if (!latDeg || !lonDeg) {
+            throw new Error("Pelo menos os graus de latitude e longitude devem ser preenchidos.");
         }
 
-        const [latDeg, latMin, latSec, latDir, lonDeg, lonMin, lonSec, lonDir] = parts;
+        // Conversão GMS para Decimal. Valores vazios são tratados como 0.
+        const lat = GmsToDec(Number(latDeg) || 0, Number(latMin) || 0, Number(latSec) || 0, latDir);
+        const lon = GmsToDec(Number(lonDeg) || 0, Number(lonMin) || 0, Number(lonSec) || 0, lonDir);
 
-        // Basic validation for numeric ranges
-        const latD = Number(latDeg);
-        const latM = Number(latMin);
-        const latS = Number(latSec);
-        const lonD = Number(lonDeg);
-        const lonM = Number(lonMin);
-        const lonS = Number(lonSec);
-
-        if (
-          Number.isNaN(latD) || Number.isNaN(latM) || Number.isNaN(latS) ||
-          Number.isNaN(lonD) || Number.isNaN(lonM) || Number.isNaN(lonS)
-        ) {
-          throw new Error('Valores numéricos inválidos em GMS. Certifique-se de usar apenas números para graus/minutos/segundos.');
-        }
-
-        if (latD < 0 || latD > 90 || lonD < 0 || lonD > 180) {
-          throw new Error('Graus fora do intervalo. Latitude: 0–90, Longitude: 0–180.');
-        }
-        if (latM < 0 || latM >= 60 || lonM < 0 || lonM >= 60 || latS < 0 || latS >= 60 || lonS < 0 || lonS >= 60) {
-          throw new Error('Minutos/segundos devem estar no intervalo 0–59.');
-        }
-
-        if (!/^[NS]$/i.test(latDir) || !/^[OE]$/i.test(lonDir)) {
-          throw new Error('Direções inválidas. Use N/S para latitude e O/E para longitude.');
-        }
-
-        // All good: convert
-        coord = GmsToDecimal(
-          latD, latM, latS, latDir,
-          lonD, lonM, lonS, lonDir
-        );
+        coord = { lat, lng: lon };
       }
 
+      // 1. Atualiza as coordenadas no mapa (função passada pelo pai)
       setMapCoords(coord);
+      // 2. Exibe o resultado formatado no componente
       setResult(`Lat: ${coord.lat.toFixed(6)}\nLon: ${coord.lng.toFixed(6)}`);
+      // 3. Limpa qualquer erro anterior
       setError(null);
 
     } catch (err) {
+      // Em caso de erro (validação ou na função utilitária)
       setError(err.message || " Erro na conversão!");
       setResult(null);
     }
   };
 
+  /**
+   * Altera o modo de conversão e limpa todos os estados de input e resultado
+   * para preparar a interface para a nova conversão.
+   *
+   * @param {'utm'|'gms'} newMode - O novo modo de conversão a ser ativado.
+   */
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setResult(null);
+    setError(null);
+    // Reset dos inputs
+    setUtmInputs({ easting: '', northing: '', zone: '', hemisphere: 'N' });
+    setGmsInputs({
+      latDeg: '', latMin: '', latSec: '', latDir: 'N',
+      lonDeg: '', lonMin: '', lonSec: '', lonDir: 'L'
+    });
+  }
+
+  // --------------------------------------------------
+  // RENDERIZAÇÃO DA INTERFACE
+  // --------------------------------------------------
+
   return (
     <div id="converter">
+      <h1>WGS84</h1>
 
+      {/* Container de botões para alternar o modo */}
       <div id="btn-container">
-        <button onClick={() => { setMode('utm'); setInput(''); setResult(null); setError(null); }}>UTM → Decimal</button>
-        <button onClick={() => { setMode('gms'); setInput(''); setResult(null); setError(null); }}>GMS → Decimal</button>
+        <button
+          onClick={() => switchMode('utm')}
+          className={mode === 'utm' ? 'active' : ''}
+        >
+          UTM → Decimal
+        </button>
+        <button
+          onClick={() => switchMode('gms')}
+          className={mode === 'gms' ? 'active' : ''}
+        >
+          GMS → Decimal
+        </button>
       </div>
 
+      {/* Container principal dos campos de entrada */}
       <div id="input-container">
-        <input
-          placeholder={mode === 'utm'
-            ? 'Ex: 500000,8250000,23,S'
-            : 'Ex: 15° 46\' 48" S 47° 55\' 45" O'}
-          value={input}
-          onChange={handleChange}
-          className="masked-input"
-        />
+        {mode === 'utm' ? (
+          /* Inputs para o modo UTM */
+          <div className="utm-inputs">
+            <input name="easting" placeholder="Leste" value={utmInputs.easting} onChange={handleUtmChange} type="number" />
+            <input name="northing" placeholder="Norte" value={utmInputs.northing} onChange={handleUtmChange} type="number" />
+            <input name="zone" placeholder="Zona" value={utmInputs.zone} onChange={handleUtmChange} type="number" />
+            <select name="hemisphere" value={utmInputs.hemisphere} onChange={handleUtmChange}>
+              <option value="N">N</option>
+              <option value="S">S</option>
+            </select>
+          </div>
+        ) : (
+          /* Inputs para o modo GMS */
+          <div className="gms-inputs">
+            {/* Linha de Latitude */}
+            <div className="gms-row">
+              <span>Lat:</span>
+              <input name="latDeg" placeholder="Graus" value={gmsInputs.latDeg} onChange={handleGmsChange} type="number"/>
+              <input name="latMin" placeholder="Minutos" value={gmsInputs.latMin} onChange={handleGmsChange} type="number" />
+              <input name="latSec" placeholder="Seg" value={gmsInputs.latSec} onChange={handleGmsChange} type="number" />
+              <select name="latDir" value={gmsInputs.latDir} onChange={handleGmsChange}>
+                <option value="N">N</option>
+                <option value="S">S</option>
+              </select>
+            </div>
+            {/* Linha de Longitude */}
+            <div className="gms-row">
+              <span>Lon:</span>
+              <input name="lonDeg" placeholder="Graus" value={gmsInputs.lonDeg} onChange={handleGmsChange} type="number" />
+              <input name="lonMin" placeholder="Min" value={gmsInputs.lonMin} onChange={handleGmsChange} type="number" />
+              <input name="lonSec" placeholder="Seg" value={gmsInputs.lonSec} onChange={handleGmsChange} type="number" />
+              <select name="lonDir" value={gmsInputs.lonDir} onChange={handleGmsChange}>
+                <option value="L">L</option>
+                <option value="O">O</option>
+              </select>
+            </div>
+          </div>
+        )}
         <button onClick={handleConvert}>Converter</button>
       </div>
 
+      {/* Mensagens de feedback */}
       {error && <p className="error-message">{error}</p>}
       {result && <pre id="output">{result}</pre>}
     </div>

@@ -1,4 +1,3 @@
-/*global google*/
 import React, { useEffect, useRef, useState } from "react";
 import { importLibrary } from "@googlemaps/js-api-loader";
 import "./map.css";
@@ -33,6 +32,7 @@ const MapView = ({ coords = { lat: -15.793889, lng: -47.882778 }, zoom = 12 }) =
     initMap().catch(err => {
       console.error('Erro ao inicializar o mapa:', err);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Atualiza posição quando coords muda

@@ -1,0 +1,351 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title> Converter.js</title>
+
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="./build/entry.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,400,700|Inconsolata,700" rel="stylesheet">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+  <link type="text/css" rel="stylesheet" href="https://jmblog.github.io/color-themes-for-google-code-prettify/themes/tomorrow-night.min.css">
+  <link type="text/css" rel="stylesheet" href="styles/app.min.css">
+  <link type="text/css" rel="stylesheet" href="styles/iframe.css">
+  <link type="text/css" rel="stylesheet" href="">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+  
+</head>
+
+
+
+<body class="layout small-header">
+    <div id="stickyNavbarOverlay"></div>
+    
+
+<div class="top-nav">
+    <div class="inner">
+        <a id="hamburger" role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+        </a>
+        <div class="logo">
+            
+            
+        </div>
+        <div class="menu">
+            
+            <div class="navigation">
+                <a
+                    href="index.html"
+                    class="link"
+                >
+                    Documentation
+                </a>
+                
+                
+                
+            </div>
+        </div>
+    </div>
+</div>
+    <div id="main">
+        <div
+            class="sidebar "
+            id="sidebarNav"
+        >
+            
+            <nav>
+                
+                    <h2><a href="index.html">Documentation</a></h2><div class="category"><h3>Global</h3><ul><li><a href="global.html#Converter">Converter</a></li><li><a href="global.html#GmsToDec">GmsToDec</a></li><li><a href="global.html#UtmToDec">UtmToDec</a></li></ul></div>
+                
+            </nav>
+        </div>
+        <div class="core" id="main-content-wrapper">
+            <div class="content">
+                <header class="page-title">
+                    <p>Source</p>
+                    <h1>Converter.js</h1>
+                </header>
+                
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState } from "react";
+import './converter.css';
+import { UtmToDec, GmsToDec } from './converterUtils.js';
+
+/**
+ * @typedef {object} ConverterProps
+ * @property {function(coords: {lat: number, lng: number}): void} setMapCoords -
+ * Uma função de callback para definir as coordenadas decimais no mapa do componente pai.
+ */
+
+/**
+ * Componente funcional para converter coordenadas entre diferentes formatos (UTM e GMS)
+ * para o formato Decimal (WGS84) e exibi-las no mapa.
+ *
+ * @param {ConverterProps} props - As propriedades passadas para o componente.
+ * @returns {React.ReactElement} O componente de interface do usuário do conversor.
+ */
+const Converter = ({ setMapCoords }) => {
+  // --------------------------------------------------
+  // ESTADOS DO COMPONENTE
+  // --------------------------------------------------
+
+  /**
+   * Controla o modo de conversão ativo: 'utm' ou 'gms'.
+   * @type {['utm'|'gms', React.Dispatch&lt;React.SetStateAction&lt;'utm'|'gms'>>]}
+   */
+  const [mode, setMode] = useState('utm');
+
+  /**
+   * Armazena os valores dos campos de entrada para o modo UTM.
+   * @type {[object, React.Dispatch&lt;React.SetStateAction&lt;object>>]}
+   * @property {string} easting - Coordenada Leste.
+   * @property {string} northing - Coordenada Norte.
+   * @property {string} zone - Zona UTM.
+   * @property {'N'|'S'} hemisphere - Hemisfério (Norte ou Sul).
+   */
+  const [utmInputs, setUtmInputs] = useState({ easting: '', northing: '', zone: '', hemisphere: 'N' });
+
+  /**
+   * Armazena os valores dos campos de entrada para o modo GMS (Graus, Minutos, Segundos).
+   * @type {[object, React.Dispatch&lt;React.SetStateAction&lt;object>>]}
+   * @property {string} latDeg, latMin, latSec - Graus, minutos e segundos da Latitude.
+   * @property {'N'|'S'} latDir - Direção da Latitude.
+   * @property {string} lonDeg, lonMin, lonSec - Graus, minutos e segundos da Longitude.
+   * @property {'L'|'O'} lonDir - Direção da Longitude.
+   */
+  const [gmsInputs, setGmsInputs] = useState({
+    latDeg: '', latMin: '', latSec: '', latDir: 'N',
+    lonDeg: '', lonMin: '', lonSec: '', lonDir: 'L'
+  });
+
+  /**
+   * Armazena a string do resultado da conversão formatado para exibição.
+   * @type {[string|null, React.Dispatch&lt;React.SetStateAction&lt;string|null>>]}
+   */
+  const [result, setResult] = useState(null);
+
+  /**
+   * Armazena a mensagem de erro em caso de falha na validação ou conversão.
+   * @type {[string|null, React.Dispatch&lt;React.SetStateAction&lt;string|null>>]}
+   */
+  const [error, setError] = useState(null);
+
+  // --------------------------------------------------
+  // HANDLERS DE EVENTOS
+  // --------------------------------------------------
+
+  /**
+   * Manipulador de mudança para os campos de entrada do modo UTM.
+   * Atualiza o estado `utmInputs` mantendo os outros campos.
+   * @param {React.ChangeEvent&lt;HTMLInputElement|HTMLSelectElement>} e - Evento de mudança do input.
+   */
+  const handleUtmChange = (e) => {
+    const { name, value } = e.target;
+    setUtmInputs(prev => ({ ...prev, [name]: value }));
+  };
+
+  /**
+   * Manipulador de mudança para os campos de entrada do modo GMS.
+   * Atualiza o estado `gmsInputs` mantendo os outros campos.
+   * @param {React.ChangeEvent&lt;HTMLInputElement|HTMLSelectElement>} e - Evento de mudança do input.
+   */
+  const handleGmsChange = (e) => {
+    const { name, value } = e.target;
+    setGmsInputs(prev => ({ ...prev, [name]: value }));
+  };
+
+  /**
+   * Executa a lógica de conversão baseada no `mode` atual.
+   * Valida os inputs, chama a função utilitária de conversão e atualiza o estado
+   * do componente pai (`setMapCoords`).
+   */
+  const handleConvert = () => {
+    try {
+      let coord;
+
+      if (mode === 'utm') {
+        const { easting, northing, zone, hemisphere } = utmInputs;
+
+        // Validação básica para UTM
+        if (!easting || !northing || !zone) {
+          throw new Error("Preencha todos os campos UTM.");
+        }
+
+        // Conversão UTM para Decimal
+        const res = UtmToDec({
+          easting: Number(easting),
+          northing: Number(northing),
+          zone: Number(zone),
+          hemisphere
+        });
+        coord = { lat: res.lat, lng: res.lon };
+
+      } else { // mode === 'gms'
+        const { latDeg, latMin, latSec, latDir, lonDeg, lonMin, lonSec, lonDir } = gmsInputs;
+
+        // Validação básica para GMS
+        if (!latDeg || !lonDeg) {
+            throw new Error("Pelo menos os graus de latitude e longitude devem ser preenchidos.");
+        }
+
+        // Conversão GMS para Decimal. Valores vazios são tratados como 0.
+        const lat = GmsToDec(Number(latDeg) || 0, Number(latMin) || 0, Number(latSec) || 0, latDir);
+        const lon = GmsToDec(Number(lonDeg) || 0, Number(lonMin) || 0, Number(lonSec) || 0, lonDir);
+
+        coord = { lat, lng: lon };
+      }
+
+      // 1. Atualiza as coordenadas no mapa (função passada pelo pai)
+      setMapCoords(coord);
+      // 2. Exibe o resultado formatado no componente
+      setResult(`Lat: ${coord.lat.toFixed(6)}\nLon: ${coord.lng.toFixed(6)}`);
+      // 3. Limpa qualquer erro anterior
+      setError(null);
+
+    } catch (err) {
+      // Em caso de erro (validação ou na função utilitária)
+      setError(err.message || " Erro na conversão!");
+      setResult(null);
+    }
+  };
+
+  /**
+   * Altera o modo de conversão e limpa todos os estados de input e resultado
+   * para preparar a interface para a nova conversão.
+   *
+   * @param {'utm'|'gms'} newMode - O novo modo de conversão a ser ativado.
+   */
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setResult(null);
+    setError(null);
+    // Reset dos inputs
+    setUtmInputs({ easting: '', northing: '', zone: '', hemisphere: 'N' });
+    setGmsInputs({
+      latDeg: '', latMin: '', latSec: '', latDir: 'N',
+      lonDeg: '', lonMin: '', lonSec: '', lonDir: 'L'
+    });
+  }
+
+  // --------------------------------------------------
+  // RENDERIZAÇÃO DA INTERFACE
+  // --------------------------------------------------
+
+  return (
+    &lt;div id="converter">
+      &lt;h2>Conversor de Coordenadas WGS84&lt;/h2>
+
+      {/* Container de botões para alternar o modo */}
+      &lt;div id="btn-container">
+        &lt;button
+          onClick={() => switchMode('utm')}
+          className={mode === 'utm' ? 'active' : ''}
+        >
+          UTM → Decimal
+        &lt;/button>
+        &lt;button
+          onClick={() => switchMode('gms')}
+          className={mode === 'gms' ? 'active' : ''}
+        >
+          GMS → Decimal
+        &lt;/button>
+      &lt;/div>
+
+      {/* Container principal dos campos de entrada */}
+      &lt;div id="input-container">
+        {mode === 'utm' ? (
+          /* Inputs para o modo UTM */
+          &lt;div className="utm-inputs">
+            &lt;input name="easting" placeholder="Leste (Easting)" value={utmInputs.easting} onChange={handleUtmChange} type="number" />
+            &lt;input name="northing" placeholder="Norte (Northing)" value={utmInputs.northing} onChange={handleUtmChange} type="number" />
+            &lt;input name="zone" placeholder="Zona (Ex: 23)" value={utmInputs.zone} onChange={handleUtmChange} type="number" />
+            &lt;select name="hemisphere" value={utmInputs.hemisphere} onChange={handleUtmChange}>
+              &lt;option value="N">Norte (N)&lt;/option>
+              &lt;option value="S">Sul (S)&lt;/option>
+            &lt;/select>
+          &lt;/div>
+        ) : (
+          /* Inputs para o modo GMS */
+          &lt;div className="gms-inputs">
+            {/* Linha de Latitude */}
+            &lt;div className="gms-row">
+              &lt;span>Lat:&lt;/span>
+              &lt;input name="latDeg" placeholder="Graus" value={gmsInputs.latDeg} onChange={handleGmsChange} type="number" />
+              &lt;input name="latMin" placeholder="Minutos" value={gmsInputs.latMin} onChange={handleGmsChange} type="number" />
+              &lt;input name="latSec" placeholder="Seg" value={gmsInputs.latSec} onChange={handleGmsChange} type="number" />
+              &lt;select name="latDir" value={gmsInputs.latDir} onChange={handleGmsChange}>
+                &lt;option value="N">N&lt;/option>
+                &lt;option value="S">S&lt;/option>
+              &lt;/select>
+            &lt;/div>
+            {/* Linha de Longitude */}
+            &lt;div className="gms-row">
+              &lt;span>Lon:&lt;/span>
+              &lt;input name="lonDeg" placeholder="Graus" value={gmsInputs.lonDeg} onChange={handleGmsChange} type="number" />
+              &lt;input name="lonMin" placeholder="Min" value={gmsInputs.lonMin} onChange={handleGmsChange} type="number" />
+              &lt;input name="lonSec" placeholder="Seg" value={gmsInputs.lonSec} onChange={handleGmsChange} type="number" />
+              &lt;select name="lonDir" value={gmsInputs.lonDir} onChange={handleGmsChange}>
+                &lt;option value="L">L&lt;/option>
+                &lt;option value="O">O&lt;/option>
+              &lt;/select>
+            &lt;/div>
+          &lt;/div>
+        )}
+        &lt;button onClick={handleConvert}>Converter&lt;/button>
+      &lt;/div>
+
+      {/* Mensagens de feedback */}
+      {error &amp;&amp; &lt;p className="error-message">{error}&lt;/p>}
+      {result &amp;&amp; &lt;pre id="output">{result}&lt;/pre>}
+    &lt;/div>
+  );
+};
+
+export default Converter;</code></pre>
+        </article>
+    </section>
+
+
+
+
+            </div>
+            
+            <footer class="footer">
+                <div class="content has-text-centered">
+                    <p>Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a></p>
+                    <p class="sidebar-created-by">
+                        <a href="https://github.com/SoftwareBrothers/better-docs" target="_blank">BetterDocs theme</a> provided with <i class="fas fa-heart"></i> by
+                        <a href="http://softwarebrothers.co" target="_blank">SoftwareBrothers - JavaScript Development Agency</a>
+                    </p>
+                </div>
+            </footer>
+            
+        </div>
+        <div id="side-nav" class="side-nav">
+        </div>
+    </div>
+<script src="scripts/app.min.js"></script>
+<script>PR.prettyPrint();</script>
+<script src="scripts/linenumber.js"> </script>
+
+
+</body>
+</html>
